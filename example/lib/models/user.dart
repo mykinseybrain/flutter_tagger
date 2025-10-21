@@ -36,7 +36,7 @@ class User {
 
   factory User.billy() => User(
         id: "69a48531n066ce0016f9h082",
-        fullName: "Vecna Finn",
+        fullName: "Ahmed Mohamed Mohamed",
         userName: "billy",
         avatar:
             "https://github.githubassets.com/images/modules/profile/achievements/yolo-default.png",
