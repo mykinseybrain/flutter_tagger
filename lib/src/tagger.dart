@@ -906,31 +906,68 @@ class FlutterTaggerController extends TextEditingController {
   /// Computes position of cursor in [formattedText] at [selectionOffset]
   /// in [text] by exploding tags in [text] to their formatted form (with ID).
   int _getCursorPosition(int selectionOffset) {
+    if (selectionOffset < 0) return 0;
+    if (text.isEmpty) return 0;
+    if (selectionOffset > text.length) selectionOffset = text.length;
+
     String subText = text.substring(0, selectionOffset);
     int offset = 0;
 
-    for (var tag in _tags.keys) {
-      if (tag.startIndex < selectionOffset && tag.endIndex <= selectionOffset) {
-        final id = _tags[tag]!;
-        final tagText = tag.text.substring(1);
-        final triggerCharacter = tag.text[0];
-
-        final formattedTagText =
-        _formatTagTextCallback?.call(id, tagText, triggerCharacter);
-
-        if (formattedTagText != null) {
-          final newText = subText.replaceRange(
-            tag.startIndex + offset,
-            tag.endIndex + offset,
-            formattedTagText,
-          );
-
-          offset = newText.length - subText.length;
-          subText = newText;
+    for (var tag in _tags.keys.toList()) {
+      try {
+        if (tag.startIndex < 0 ||
+            tag.endIndex > text.length ||
+            tag.startIndex >= tag.endIndex ||
+            tag.text.isEmpty) {
+          continue;
         }
+
+        final actualTextAtTag = text.substring(
+            tag.startIndex,
+            tag.endIndex < text.length ? tag.endIndex : text.length
+        );
+
+        if (actualTextAtTag != tag.text) {
+          continue;
+        }
+
+        if (tag.startIndex < selectionOffset && tag.endIndex <= selectionOffset) {
+          final id = _tags[tag];
+          if (id == null || id.isEmpty) continue;
+
+          final tagText = tag.text.length > 1 ? tag.text.substring(1) : "";
+          final triggerCharacter = tag.text.isNotEmpty ? tag.text[0] : "";
+
+          final formattedTagText =
+          _formatTagTextCallback?.call(id, tagText, triggerCharacter);
+
+          if (formattedTagText != null && formattedTagText.isNotEmpty) {
+            final adjustedStartIndex = tag.startIndex + offset;
+            final adjustedEndIndex = tag.endIndex + offset;
+
+            if (adjustedStartIndex >= 0 &&
+                adjustedEndIndex <= subText.length &&
+                adjustedStartIndex < adjustedEndIndex) {
+
+              final newText = subText.replaceRange(
+                adjustedStartIndex,
+                adjustedEndIndex,
+                formattedTagText,
+              );
+
+              offset = newText.length - subText.length;
+              subText = newText;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error processing tag: $e');
+        continue;
       }
     }
-    return subText.length;
+
+    // التحقق النهائي من أن النتيجة غير سالبة
+    return subText.length >= 0 ? subText.length : 0;
   }
 
   @override
