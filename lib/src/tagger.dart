@@ -778,6 +778,7 @@ class _FlutterTaggerState extends State<FlutterTagger> {
   /// Extracts text appended to the last [_currentTriggerChar] symbol
   /// found in the substring of [text] up until [endOffset]
   /// and calls [FlutterTagger.onSearch].
+  /*
   void _extractAndSearch(String text, int endOffset) {
     try {
       int index =
@@ -793,6 +794,28 @@ class _FlutterTaggerState extends State<FlutterTagger> {
       _shouldHideOverlay(false);
       widget.onSearch(query, _currentTriggerChar);
     } catch (_) {}
+  }
+   */
+
+  // يمكنك إضافة تحقق إضافي في الـ _extractAndSearch method
+  void _extractAndSearch(String text, int endOffset) {
+    int index =
+    text.substring(0, endOffset + 1).lastIndexOf(_currentTriggerChar);
+
+    final query = text.substring(index + 1, endOffset + 1);
+
+    final words = query.trim().split(RegExp(r'\s+'));
+    if (words.length > 3) {
+      _shouldHideOverlay(true);
+      return;
+    }
+
+    if (query.contains('  ')) {
+      _shouldHideOverlay(true);
+      return;
+    }
+    _shouldHideOverlay(false);
+    widget.onSearch(query, _currentTriggerChar);
   }
 
   @override
