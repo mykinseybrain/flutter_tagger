@@ -577,6 +577,7 @@ class _FlutterTaggerState extends State<FlutterTagger> {
   ///
   /// Returns `true` if a search query is found from back tracking.
   /// Otherwise, returns `false`.
+  /*
   bool _backtrackAndSearch() {
     String text = controller.text;
     if (!text.contains(_triggerCharactersPattern)) return false;
@@ -607,6 +608,60 @@ class _FlutterTaggerState extends State<FlutterTagger> {
         }
 
         return true;
+      }
+    }
+
+    _isBacktrackingToSearch = false;
+    return false;
+  }
+   */
+
+  bool _backtrackAndSearch() {
+    String text = controller.text;
+    if (!text.contains(_triggerCharactersPattern)) {
+      _shouldSearch = false;
+      _isBacktrackingToSearch = false;
+      return false;
+    }
+
+    _lastCachedText = text;
+    final length = controller.selection.base.offset - 1;
+
+    for (int i = length; i >= 0; i--) {
+      if (triggerCharacters.contains(text[i])) {
+        // التحقق الصح: هل الـ @ ده جزء من تاغ موجود ولا @ جديدة؟
+        bool isPartOfExistingTag = false;
+
+        for (var tag in _tags.keys) {
+          // لو الـ @ ده موجود في أي مكان داخل التاغ (من البداية للنهاية)
+          if (i >= tag.startIndex && i < tag.endIndex) {
+            isPartOfExistingTag = true;
+            break;
+          }
+        }
+
+        // لو جزء من تاغ موجود، متفتحش البحث
+        if (isPartOfExistingTag) {
+          _shouldSearch = false;
+          _isBacktrackingToSearch = false;
+          return false;
+        }
+
+        // لو مش جزء من تاغ موجود، يبقى @ جديدة - افحص إذا فيه تاغ بيبدأ من هنا
+        final doesTagStartHere = _tags.keys.any((tag) => tag.startIndex == i);
+
+        // لو مفيش تاغ بيبدأ من هنا، يبقى @ جديدة - ابدأ بحث
+        if (!doesTagStartHere) {
+          _currentTriggerChar = text[i];
+          _shouldSearch = true;
+          _isTagSelected = false;
+          _isBacktrackingToSearch = true;
+
+          if (text.isNotEmpty) {
+            _extractAndSearch(text, length);
+          }
+          return true;
+        }
       }
     }
 
@@ -648,6 +703,20 @@ class _FlutterTaggerState extends State<FlutterTagger> {
       // when the call to _tagListener is deffered.
       int position = currentCursorPosition - 1;
       if (position >= 0 && triggerCharacters.contains(text[position])) {
+        bool isInsideTag = false;
+        for (var tag in _tags.keys) {
+          if (position >= tag.startIndex && position < tag.endIndex) {
+            isInsideTag = true;
+            break;
+          }
+        }
+        if (!isInsideTag) {
+          _shouldSearch = true;
+          _currentTriggerChar = text[position];
+          if (widget.triggerStrategy == TriggerStrategy.eager) {
+            _extractAndSearch(text, position);
+          }
+        }
         _shouldSearch = true;
         _currentTriggerChar = text[position];
         if (widget.triggerStrategy == TriggerStrategy.eager) {
@@ -797,6 +866,7 @@ class _FlutterTaggerState extends State<FlutterTagger> {
   }
    */
 
+  /*
   // يمكنك إضافة تحقق إضافي في الـ _extractAndSearch method
   void _extractAndSearch(String text, int endOffset) {
     int index =
@@ -816,6 +886,46 @@ class _FlutterTaggerState extends State<FlutterTagger> {
     }
     _shouldHideOverlay(false);
     widget.onSearch(query, _currentTriggerChar);
+  }
+
+   */
+
+  void _extractAndSearch(String text, int endOffset) {
+    try {
+      int index = text.substring(0, endOffset + 1).lastIndexOf(_currentTriggerChar);
+      if (index < 0) return;
+
+      // التأكد إن الـ @ الجديدة مش جوا تاغ موجود
+      bool isInsideExistingTag = false;
+      for (var tag in _tags.keys) {
+        if (index >= tag.startIndex && index < tag.endIndex) {
+          isInsideExistingTag = true;
+          break;
+        }
+      }
+
+      if (isInsideExistingTag) {
+        _shouldSearch = false;
+        _shouldHideOverlay(true);
+        return;
+      }
+
+      final query = text.substring(index + 1, endOffset + 1);
+
+      final words = query.trim().split(RegExp(r'\s+'));
+      if (words.length > 3) {
+        _shouldHideOverlay(true);
+        return;
+      }
+
+      if (query.contains('  ')) {
+        _shouldHideOverlay(true);
+        return;
+      }
+
+      _shouldHideOverlay(false);
+      widget.onSearch(query, _currentTriggerChar);
+    } catch (_) {}
   }
 
   @override
